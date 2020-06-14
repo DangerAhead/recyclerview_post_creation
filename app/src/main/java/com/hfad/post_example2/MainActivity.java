@@ -20,6 +20,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+
 import org.json.JSONObject;
 
 import java.io.File;
@@ -35,7 +36,13 @@ import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
-import okhttp3.Response;
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+import retrofit2.http.Multipart;
 
 public class MainActivity extends AppCompatActivity implements ListAdapterWithRecycleView.image_listener, ListAdapterWithRecycleView.video_listener{
 
@@ -50,6 +57,7 @@ public class MainActivity extends AppCompatActivity implements ListAdapterWithRe
 
 
     List<Uri> uris = new ArrayList<>();
+    List<String> filePaths = new ArrayList<>();
 
 
 
@@ -91,7 +99,7 @@ public class MainActivity extends AppCompatActivity implements ListAdapterWithRe
         post.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                upload_media();
             }
         });
 
@@ -105,6 +113,7 @@ public class MainActivity extends AppCompatActivity implements ListAdapterWithRe
         if (requestCode == 1 && resultCode == RESULT_OK) {
 
             ClipData clipData = data.getClipData();
+           // Log.e(TAG,"aa gaya");
 
             if (clipData != null)
             {
@@ -135,39 +144,7 @@ public class MainActivity extends AppCompatActivity implements ListAdapterWithRe
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    /*public static JSONObject uploadImage(String memberId, String sourceImageFile) {
 
-        try {
-            File sourceFile = new File(sourceImageFile);
-
-
-
-            final MediaType MEDIA_TYPE = sourceImageFile.endsWith("png") ?
-                    MediaType.parse("image/png") : MediaType.parse("image/jpeg");
-
-
-            RequestBody requestBody = new MultipartBody.Builder()
-                    .setType(MultipartBody.FORM)
-                    .addFormDataPart("uploaded_file", filename, RequestBody.create(MEDIA_TYPE_PNG, sourceFile))
-                    .addFormDataPart("result", "my_image")
-                    .build();
-
-            Request request = new Request.Builder()
-                    .url("URL_UPLOAD_IMAGE")
-                    .post(requestBody)
-                    .build();
-
-            OkHttpClient client = new OkHttpClient();
-            Response response = client.newCall(request).execute();
-            return new JSONObject(response.body().string());
-
-        } catch (UnknownHostException | UnsupportedEncodingException e) {
-            Log.e(TAG, "Error: " + e.getLocalizedMessage());
-        } catch (Exception e) {
-            Log.e(TAG, "Other Error: " + e.getLocalizedMessage());
-        }
-        return null;
-    }*/
 
 
 
@@ -185,6 +162,87 @@ public class MainActivity extends AppCompatActivity implements ListAdapterWithRe
         Intent intent = new Intent(this,user_video_view.class);
         startActivity(intent);
     }
+
+
+    public void upload_media()
+    {
+        /*if(uris.size()==0)
+        {
+            Toast.makeText(this," Add an images of videos first",Toast.LENGTH_LONG).show();
+            return;
+        }*/
+
+
+
+        List<MultipartBody.Part> part = new ArrayList<>();
+
+        part.add(MultipartBody.Part.createFormData("text",post_text.getText().toString()));
+        RequestBody text = RequestBody.create(MediaType.parse("text/plain"),post_text.getText().toString());
+
+        for(int i=0;i<uris.size();i++)
+        {
+            if(uris.get(i).toString().contains("image"))
+            {
+                File imageFile = new File(uris.get(i).getPath());
+                RequestBody requestImageFile = RequestBody.create(MediaType.parse("image/*"),imageFile);
+                part.add(MultipartBody.Part.createFormData("postMedia",imageFile.getName(), requestImageFile));
+            }
+
+            else
+            {
+                File videoFile = new File(uris.get(i).getPath());
+                RequestBody requestVideoFile = RequestBody.create(MediaType.parse("video/*"),videoFile);
+                part.add(MultipartBody.Part.createFormData("postMedia",videoFile.getName(), requestVideoFile));
+            }
+        }
+
+
+        Retrofit retrofit = ApiClient.createService();
+
+        File fil = new File(uris.get(2).getPath());
+        RequestBody req = RequestBody.create(MediaType.parse("image/*"),fil);
+        MultipartBody.Part part1 = MultipartBody.Part.createFormData("postMedia",fil.getName(), req);
+
+        ApiService apiService = retrofit.create(ApiService.class);
+
+        Call<RequestBody> call = apiService.uploadMultiFile(part1,text);
+        Log.e(TAG,"aa gaya1");
+
+        call.enqueue(new Callback<RequestBody>() {
+            @Override
+            public void onResponse(Call<RequestBody> call, Response<RequestBody> response) {
+                media_added();
+            }
+
+            @Override
+            public void onFailure(Call<RequestBody> call, Throwable t) {
+                media_failed();
+            }
+        });
+
+
+
+
+
+    }
+
+    public void media_added()
+    {
+        Toast.makeText(this,"post uploaded!",Toast.LENGTH_LONG).show();
+    }
+
+    public void media_failed()
+    {
+        Toast.makeText(this," Failed to add post!",Toast.LENGTH_LONG).show();
+    }
+
+
+
+
+
+
+
+
 }
 
 
