@@ -190,10 +190,22 @@ public class MainActivity extends AppCompatActivity implements ListAdapterWithRe
             return;
         }*/
 
-        File file = new File(getRealPathFromURI(uris.get(0)));
-        Log.e("xyz",uris.get(0).toString());
+        List<MultipartBody.Part> img_list = new ArrayList<>();
 
-        RequestBody requestFile = RequestBody.create(MediaType.parse(getContentResolver().getType(uris.get(0))), file);
+        for(int i=0;i<uris.size();i++)
+        {
+            File file = new File(getRealPathFromURI(uris.get(i)));
+            //Log.e("xyz",uris.get(0).toString());
+            RequestBody requestFile = RequestBody.create(MediaType.parse("multipart/form-data"), file);
+
+            MultipartBody.Part body = MultipartBody.Part.createFormData("postMedia", file.getName(), requestFile);
+            img_list.add(body);
+
+        }
+
+
+        RequestBody descBody = RequestBody.create(MediaType.parse("text/plain"), post_text.getText().toString());
+
 
         Gson gson = new GsonBuilder()
                 .setLenient()
@@ -206,7 +218,7 @@ public class MainActivity extends AppCompatActivity implements ListAdapterWithRe
 
         Api api = retrofit.create(Api.class);
 
-        Call<MyResponse> call = api.uploadImage(requestFile);
+        Call<MyResponse> call = api.uploadImage(img_list,descBody);
 
         call.enqueue(new Callback<MyResponse>() {
             @Override
