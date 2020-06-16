@@ -3,6 +3,7 @@ package com.hfad.post_example2;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.loader.content.CursorLoader;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -10,16 +11,21 @@ import android.Manifest;
 import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import org.json.JSONObject;
 
@@ -157,10 +163,22 @@ public class MainActivity extends AppCompatActivity implements ListAdapterWithRe
 
     @Override
     public void video_click(int position) {
-        Toast.makeText(this,"set_images",Toast.LENGTH_LONG).show();
+        //Toast.makeText(this,"set_images",Toast.LENGTH_LONG).show();
         UriHelper.getInstance().setUri(uris.get(position));
         Intent intent = new Intent(this,user_video_view.class);
         startActivity(intent);
+    }
+
+    private String getRealPathFromURI(Uri contentUri) {
+        String[] proj = {MediaStore.Images.Media.DATA};
+        CursorLoader loader = new CursorLoader(this, contentUri, proj, null, null, null);
+        Cursor cursor = loader.loadInBackground();
+        int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+        cursor.moveToFirst();
+        String result = cursor.getString(column_index);
+        cursor.close();
+        Log.e("taggg2",result);
+        return result;
     }
 
 
@@ -172,53 +190,39 @@ public class MainActivity extends AppCompatActivity implements ListAdapterWithRe
             return;
         }*/
 
+        File file = new File(getRealPathFromURI(uris.get(0)));
+        Log.e("xyz",uris.get(0).toString());
 
+        RequestBody requestFile = RequestBody.create(MediaType.parse(getContentResolver().getType(uris.get(0))), file);
 
-        List<MultipartBody.Part> part = new ArrayList<>();
+        Gson gson = new GsonBuilder()
+                .setLenient()
+                .create();
 
-        part.add(MultipartBody.Part.createFormData("text",post_text.getText().toString()));
-        RequestBody text = RequestBody.create(MediaType.parse("text/plain"),post_text.getText().toString());
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(Api.BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .build();
 
-        for(int i=0;i<uris.size();i++)
-        {
-            if(uris.get(i).toString().contains("image"))
-            {
-                File imageFile = new File(uris.get(i).getPath());
-                RequestBody requestImageFile = RequestBody.create(MediaType.parse("image/*"),imageFile);
-                part.add(MultipartBody.Part.createFormData("postMedia",imageFile.getName(), requestImageFile));
-            }
+        Api api = retrofit.create(Api.class);
 
-            else
-            {
-                File videoFile = new File(uris.get(i).getPath());
-                RequestBody requestVideoFile = RequestBody.create(MediaType.parse("video/*"),videoFile);
-                part.add(MultipartBody.Part.createFormData("postMedia",videoFile.getName(), requestVideoFile));
-            }
-        }
+        Call<MyResponse> call = api.uploadImage(requestFile);
 
-
-        Retrofit retrofit = ApiClient.createService();
-
-        File fil = new File(uris.get(2).getPath());
-        RequestBody req = RequestBody.create(MediaType.parse("image/*"),fil);
-        MultipartBody.Part part1 = MultipartBody.Part.createFormData("postMedia",fil.getName(), req);
-
-        ApiService apiService = retrofit.create(ApiService.class);
-
-        Call<RequestBody> call = apiService.uploadMultiFile(part1,text);
-        Log.e(TAG,"aa gaya1");
-
-        call.enqueue(new Callback<RequestBody>() {
+        call.enqueue(new Callback<MyResponse>() {
             @Override
-            public void onResponse(Call<RequestBody> call, Response<RequestBody> response) {
+            public void onResponse(Call<MyResponse> call, Response<MyResponse> response) {
                 media_added();
+                Log.e(TAG,response.toString());
             }
 
             @Override
-            public void onFailure(Call<RequestBody> call, Throwable t) {
+            public void onFailure(Call<MyResponse> call, Throwable t) {
                 media_failed();
+                Log.e(TAG,t.toString());
             }
         });
+
+
 
 
 
